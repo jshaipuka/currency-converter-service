@@ -1,0 +1,153 @@
+RatesApiRefreshLambdaRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: RatesApiRefreshLambdaRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: WriteSQS
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:sendMessage
+              Resource:
+                Ref: RatesQueue
+      - PolicyName: WriteLogs
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource:
+                - 'Fn::Join':
+                  - ':'
+                  -
+                    - 'arn:aws:logs'
+                    - Ref: 'AWS::Region'
+                    - Ref: 'AWS::AccountId'
+                    - 'log-group:/aws/lambda/${self:service}*:*:*'
+      - PolicyName: SaveDeploymentStack
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            -  Effect: 'Allow'
+               Action:
+                 - 's3:PutObject'
+               Resource:
+                 Fn::Join:
+                   - ''
+                   - - 'arn:aws:s3:::'
+                     - 'Ref' : 'ServerlessDeploymentBucket'
+RatesApiGetLambdaRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: RatesApiGetLambdaRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      # - PolicyName: ReadAndWriteRedis
+      #   PolicyDocument:
+      #     Version: '2012-10-17'
+      #     Statement:
+      #       - Effect: Allow
+      #         Action:
+      #           - sqs:sendMessage
+      #         Resource:
+      #           Ref: RatesQueue
+      - PolicyName: WriteLogs
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource:
+                - 'Fn::Join':
+                  - ':'
+                  -
+                    - 'arn:aws:logs'
+                    - Ref: 'AWS::Region'
+                    - Ref: 'AWS::AccountId'
+                    - 'log-group:/aws/lambda/${self:service}*:*:*'
+      - PolicyName: SaveDeploymentStack
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            -  Effect: 'Allow'
+               Action:
+                 - 's3:PutObject'
+               Resource:
+                 Fn::Join:
+                   - ''
+                   - - 'arn:aws:s3:::'
+                     - 'Ref' : 'ServerlessDeploymentBucket'
+RefreshRatesLambdaRole:
+  Type: AWS::IAM::Role
+  Properties:
+    RoleName: RefreshRatesLambdaRole
+    AssumeRolePolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+          Action: sts:AssumeRole
+    Policies:
+      - PolicyName: ReadSQS
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:receiveMessage
+              Resource:
+                Ref: RatesQueue
+      - PolicyName: WriteLogs
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource:
+                - 'Fn::Join':
+                  - ':'
+                  -
+                    - 'arn:aws:logs'
+                    - Ref: 'AWS::Region'
+                    - Ref: 'AWS::AccountId'
+                    - 'log-group:/aws/lambda/${self:service}*:*:*'
+      - PolicyName: SaveDeploymentStack
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            -  Effect: 'Allow'
+               Action:
+                 - 's3:PutObject'
+               Resource:
+                 Fn::Join:
+                   - ''
+                   - - 'arn:aws:s3:::'
+                     - 'Ref' : 'ServerlessDeploymentBucket'

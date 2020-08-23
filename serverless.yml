@@ -1,0 +1,77 @@
+service: currency-converter-service
+
+provider:
+  name: aws
+  runtime: java8
+  stage: test
+  region: us-east-1
+  tags:
+    Name: currency-converter-service
+    Environment: ${opt:stage}
+  # environment:
+  #   ALPHAVANTAGE_API_KEY: ${ssm:/Test/CurrencyConverter/AlphavantageApiKey~true}
+  #   REDIS_HOST: ${ssm:/Test/CurrencyConverter/RedisHost~true}
+  #   REDIS_PORT: ${ssm:/Test/CurrencyConverter/RedisPort~true}
+  apiKeys:
+    - ${self:service}-${self:provider.stage}-api-keys
+
+package:
+  artifact: 'target/${self:service}-1.0.0.jar'
+
+custom:
+  ratesQueue: ${self:service}
+
+#plugins:
+#  - serverless-offline
+
+functions:
+  rates-api-refresh:
+    handler: com.serverless.Handler
+    description: Public web api which triggers message sending to the queue
+    role: RatesApiRefreshLambdaRole
+    environment:
+      RATES_QUEUE: ${self:custom.ratesQueue}
+    events:
+      - http:
+          path: rates
+          method: put
+          request:
+            template:
+              application/json: >
+                {
+                  "from" : "$input.params('from')",
+                  "to": "$input.params('to')"
+                }
+  # rates-api-get:
+  #   handler: com.serverless.Handler
+  #   description: Public web api which returns cached data to UI
+  #   role: RatesApiGetLambdaRole
+  #   events:
+  #     - http:
+  #         path: rates
+  #         method: GET
+  #         request:
+  #           template:
+  #             application/json: >
+  #               {
+  #                 "from" : "$input.params('from')",
+  #                 "to": "$input.params('to')",
+  #                 "interval": "$input.params('interval')",
+  #                 "dateRange": "$input.params('dateRange')"
+  #               }
+  refresh-rates:
+    handler: com.serverless.ReadSQSHandler
+    description: Listen to queue, fetch new rates and store them in Redis
+    role: RefreshRatesLambdaRole
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - RatesQueue
+              - Arn
+          batchSize: 1
+
+Resources:
+  - ${file(./infra/ssm.yml)}
+  - ${file(./infra/sqs.yml)}
+  - ${file(./infra/iam.yml)}
