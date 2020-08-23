@@ -4,10 +4,13 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class SQSWriteHandler implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
     private static final Logger LOG = LogManager.getLogger(SQSWriteHandler.class);
@@ -16,7 +19,10 @@ public class SQSWriteHandler implements RequestHandler<APIGatewayProxyRequestEve
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, Context context) {
         LOG.info("received: {}", input);
 
-        Map<String, String> parameters = input.getQueryStringParameters();
+        Map<String, String> parameters = input.getQueryStringParameters().entrySet().stream()
+                .filter(keyValue -> "from".equals(keyValue.getKey()) || "to".equals(keyValue.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
         String currencyFrom = parameters.get("from");
         String currencyTo = parameters.get("to");
 
@@ -27,12 +33,11 @@ public class SQSWriteHandler implements RequestHandler<APIGatewayProxyRequestEve
                     .withBody(message);
         }
 
-        new SQSClient().sendMessage("Hello");
-        LOG.info("Published to sqs");
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String message = gson.toJson(parameters);
+        new SQSClient().sendMessage(message);
 
-        String message = "All is well";
         return new APIGatewayProxyResponseEvent()
-                .withStatusCode(200)
-                .withBody(message);
+                .withStatusCode(200);
     }
 }

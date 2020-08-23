@@ -8,12 +8,12 @@ import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 
 class SQSClient {
     private static final String QUEUE = System.getenv("RATES_QUEUE");
-    private static final String REGION = System.getenv("REGION");
+    private static final String REGION = defaultIfBlank(System.getenv("REGION"), "us-east-1");
     private AmazonSQS sqs;
 
     SQSClient() {
         this.sqs = AmazonSQSClientBuilder.standard()
-                .withRegion(defaultIfBlank(REGION, "us-east-1"))
+                .withRegion(REGION)
                 .build();
     }
 
