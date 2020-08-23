@@ -26,7 +26,7 @@ custom:
 
 functions:
   rates-api-refresh:
-    handler: com.serverless.Handler
+    handler: com.serverless.SQSWriteHandler
     description: Public web api which triggers message sending to the queue
     role: RatesApiRefreshLambdaRole
     environment:
@@ -60,7 +60,7 @@ functions:
   #                 "dateRange": "$input.params('dateRange')"
   #               }
   refresh-rates:
-    handler: com.serverless.ReadSQSHandler
+    handler: com.serverless.SQSReadHandler
     description: Listen to queue, fetch new rates and store them in Redis
     role: RefreshRatesLambdaRole
     events:
