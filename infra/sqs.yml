@@ -1,4 +1,4 @@
-RatesQueue:
-  Type: 'AWS::SQS::Queue'
-  Properties:
-    QueueName: 'rates'
+    RatesQueue:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: 'rates'

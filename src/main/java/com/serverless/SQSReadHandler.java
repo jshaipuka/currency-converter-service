@@ -22,25 +22,24 @@ public class SQSReadHandler implements RequestHandler<SQSEvent, Void> {
     public Void handleRequest(SQSEvent event, Context context) {
         List<String> messages = getSQSMessages(event);
 
-        messages.forEach(System.out::println);
-
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        Type type = new TypeToken<Map<String, String>>() {
-        }.getType();
+        Type type = new TypeToken<Map<String, String>>() {}.getType();
 
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddhhmm");
         String formattedTimestamp = formatter.format(timestamp);
 
         RedisClient redis = new RedisClient();
+        AlphaVantageClient avClient = new AlphaVantageClient();
 
         messages.forEach(message -> {
             Map<String, String> params = gson.fromJson(message, type);
-            String key = params.get("from") + params.get("to") + formattedTimestamp;
-            String value = "api value response for " + params.get("from") + params.get("to");
+
+            String key = params.get("from") + "TO" + params.get("to") + formattedTimestamp;
+            String value = avClient.getRates(params.get("from"), params.get("to"));
 
             if (redis.get(key) == null) {
-                redis.set(key, value);
+                 redis.set(key, value);
             }
         });
 

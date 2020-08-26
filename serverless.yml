@@ -5,13 +5,14 @@ provider:
   runtime: java8
   stage: test
   region: us-east-1
+  timeout: 30
   tags:
     Name: currency-converter-service
     Environment: ${opt:stage}
-  # environment:
-  #   ALPHAVANTAGE_API_KEY: ${ssm:/Test/CurrencyConverter/AlphavantageApiKey~true}
-  #   REDIS_HOST: ${ssm:/Test/CurrencyConverter/RedisHost~true}
-  #   REDIS_PORT: ${ssm:/Test/CurrencyConverter/RedisPort~true}
+  environment:
+    ALPHAVANTAGE_API_KEY: ${ssm:/Test/CurrencyConverter/AlphavantageApiKey~true}
+    REDIS_HOST: ${ssm:/Test/CurrencyConverter/RedisHost}
+    REDIS_PORT: 6379
   apiKeys:
     - ${self:service}-${self:provider.stage}-api-keys
 
@@ -19,10 +20,9 @@ package:
   artifact: 'target/${self:service}-1.0.0.jar'
 
 custom:
-  ratesQueue: ${self:service}
-
-#plugins:
-#  - serverless-offline
+  ratesQueue: RatesQueue
+  vpcId: ${ssm:/Test/CurrencyConverter/Networking/VpcId}
+  subnetId: ${ssm:/Test/CurrencyConverter/Networking/SubnetId}
 
 functions:
   rates-api-refresh:
@@ -30,35 +30,20 @@ functions:
     description: Public web api which triggers message sending to the queue
     role: RatesApiRefreshLambdaRole
     environment:
-      RATES_QUEUE: ${self:custom.ratesQueue}
+      RATES_QUEUE:
+        Ref: RatesQueue
     events:
       - http:
           path: rates
           method: put
-          request:
-            template:
-              application/json: >
-                {
-                  "from" : "$input.params('from')",
-                  "to": "$input.params('to')"
-                }
-  # rates-api-get:
-  #   handler: com.serverless.Handler
-  #   description: Public web api which returns cached data to UI
-  #   role: RatesApiGetLambdaRole
-  #   events:
-  #     - http:
-  #         path: rates
-  #         method: GET
-  #         request:
-  #           template:
-  #             application/json: >
-  #               {
-  #                 "from" : "$input.params('from')",
-  #                 "to": "$input.params('to')",
-  #                 "interval": "$input.params('interval')",
-  #                 "dateRange": "$input.params('dateRange')"
-  #               }
+  rates-api-get:
+     handler: com.serverless.GetApiHandler
+     description: Public web api which returns cached data to UI
+     role: RatesApiGetLambdaRole
+     events:
+       - http:
+           path: rates
+           method: GET
   refresh-rates:
     handler: com.serverless.SQSReadHandler
     description: Listen to queue, fetch new rates and store them in Redis
@@ -71,7 +56,187 @@ functions:
               - Arn
           batchSize: 1
 
-Resources:
-  - ${file(./infra/ssm.yml)}
-  - ${file(./infra/sqs.yml)}
-  - ${file(./infra/iam.yml)}
+resources:
+  Resources:
+    RatesQueue:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: 'rates'
+    RatesApiRefreshLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: RatesApiRefreshLambdaRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: WriteSQS
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sqs:sendMessage
+                  Resource:
+                    Fn::GetAtt:
+                      - RatesQueue
+                      - Arn
+          - PolicyName: VPCNetworking
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateNetworkInterface
+                    - ec2:DescribeNetworkInterfaces
+                    - ec2:DeleteNetworkInterface
+                  Resource: '*'
+          - PolicyName: WriteLogs
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                      - ':'
+                      -
+                        - 'arn:aws:logs'
+                        - Ref: 'AWS::Region'
+                        - Ref: 'AWS::AccountId'
+                        - 'log-group:/aws/lambda/${self:service}*:*:*'
+          - PolicyName: SaveDeploymentStack
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                -  Effect: 'Allow'
+                   Action:
+                    - 's3:PutObject'
+                   Resource:
+                    Fn::Join:
+                      - ''
+                      - - 'arn:aws:s3:::'
+                        - 'Ref' : 'ServerlessDeploymentBucket'
+    RatesApiGetLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: RatesApiGetLambdaRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: WriteLogs
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                      - ':'
+                      -
+                        - 'arn:aws:logs'
+                        - Ref: 'AWS::Region'
+                        - Ref: 'AWS::AccountId'
+                        - 'log-group:/aws/lambda/${self:service}*:*:*'
+          - PolicyName: SaveDeploymentStack
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                -  Effect: 'Allow'
+                   Action:
+                      - 's3:PutObject'
+                   Resource:
+                      Fn::Join:
+                        - ''
+                        - - 'arn:aws:s3:::'
+                          - 'Ref' : 'ServerlessDeploymentBucket'
+    RefreshRatesLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: RefreshRatesLambdaRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: ReadSQS
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sqs:getQueueAttributes
+                    - sqs:receiveMessage
+                    - sqs:deleteMessage
+                  Resource:
+                    Fn::GetAtt:
+                      - RatesQueue
+                      - Arn
+          - PolicyName: VPCNetworking
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateNetworkInterface
+                    - ec2:DescribeNetworkInterfaces
+                    - ec2:DeleteNetworkInterface
+                  Resource: '*'
+          - PolicyName: Redis
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - elasticache:*
+                  Resource: '*'
+          - PolicyName: WriteLogs
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                      - ':'
+                      -
+                        - 'arn:aws:logs'
+                        - Ref: 'AWS::Region'
+                        - Ref: 'AWS::AccountId'
+                        - 'log-group:/aws/lambda/${self:service}*:*:*'
+          - PolicyName: SaveDeploymentStack
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                -  Effect: 'Allow'
+                   Action:
+                      - 's3:PutObject'
+                   Resource:
+                      Fn::Join:
+                        - ''
+                        - - 'arn:aws:s3:::'
+                          - 'Ref' : 'ServerlessDeploymentBucket'
