@@ -9,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -30,6 +31,10 @@ public class SQSWriteHandler implements RequestHandler<APIGatewayProxyRequestEve
             String message = "Missing required parameters";
             return new APIGatewayProxyResponseEvent()
                     .withStatusCode(400)
+                    .withHeaders(new HashMap<String, String>() {{
+                        put("Access-Control-Allow-Origin", "*");
+                        put("Access-Control-Allow-Credentials", "true");
+                    }})
                     .withBody(message);
         }
 
@@ -38,6 +43,10 @@ public class SQSWriteHandler implements RequestHandler<APIGatewayProxyRequestEve
         new SQSClient().sendMessage(message);
 
         return new APIGatewayProxyResponseEvent()
+                .withHeaders(new HashMap<String, String>() {{
+                    put("Access-Control-Allow-Origin", "*");
+                    put("Access-Control-Allow-Credentials", "true");
+                }})
                 .withStatusCode(200);
     }
 }

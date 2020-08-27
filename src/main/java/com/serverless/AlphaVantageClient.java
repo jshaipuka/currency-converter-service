@@ -38,9 +38,9 @@ public class AlphaVantageClient {
 
         if ("monthly".equals(interval)) {
             query = String.format("function=FX_DAILY&from_symbol=%s&to_symbol=%s&apikey=%s", from, to, API_KEY);
-        } else if ("daily".equals(interval)) {
+        } else if ("weekly".equals(interval)) {
             query = String.format("function=FX_INTRADAY&from_symbol=%s&to_symbol=%s&interval=60min&outputsize=full&apikey=%s", from, to, API_KEY);
-        } else if ("hourly".equals(interval)) {
+        } else if ("daily".equals(interval)) {
             query = String.format("function=FX_INTRADAY&from_symbol=%s&to_symbol=%s&interval=5min&outputsize=full&apikey=%s", from, to, API_KEY);
         }
 

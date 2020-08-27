@@ -17,37 +17,23 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-lambda-java-log4j2</artifactId>
-      <!-- <scope>provided</scope> -->
+<!--       <scope>provided</scope>-->
       <version>1.0.0</version>
     </dependency>
-    <!-- <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-lambda</artifactId>
-        <version>1.11.76</version>
-    </dependency> -->
-
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-sqs</artifactId>
-      <!-- <scope>provided</scope> -->
+<!--       <scope>provided</scope>-->
       <version>1.11.847</version>
     </dependency>
-    <!--    <dependency>-->
-    <!--        <groupId>com.amazonaws</groupId>-->
-    <!--        <artifactId>aws-java-sdk-elasticache</artifactId>-->
-    <!--        <version>1.11.847</version>-->
-    <!--    </dependency>-->
-    <!-- <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-lambda-java-core</artifactId>
-        <version>1.2.1</version>
-    </dependency> -->
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-lambda-java-events</artifactId>
-      <!-- <scope>provided</scope> -->
+<!--       <scope>provided</scope>-->
       <version>3.2.0</version>
     </dependency>
+
+
     <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>

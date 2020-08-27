@@ -4,7 +4,6 @@ provider:
   name: aws
   runtime: java8
   stage: test
-  region: us-east-1
   timeout: 30
   tags:
     Name: currency-converter-service
@@ -19,11 +18,6 @@ provider:
 package:
   artifact: 'target/${self:service}-1.0.0.jar'
 
-custom:
-  ratesQueue: RatesQueue
-  vpcId: ${ssm:/Test/CurrencyConverter/Networking/VpcId}
-  subnetId: ${ssm:/Test/CurrencyConverter/Networking/SubnetId}
-
 functions:
   rates-api-refresh:
     handler: com.serverless.SQSWriteHandler
@@ -36,6 +30,7 @@ functions:
       - http:
           path: rates
           method: put
+          cors: true
   rates-api-get:
      handler: com.serverless.GetApiHandler
      description: Public web api which returns cached data to UI
@@ -44,6 +39,7 @@ functions:
        - http:
            path: rates
            method: GET
+           cors: true
   refresh-rates:
     handler: com.serverless.SQSReadHandler
     description: Listen to queue, fetch new rates and store them in Redis
